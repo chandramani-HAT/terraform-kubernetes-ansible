@@ -225,7 +225,11 @@ stage('Install Dependencies') {
 stage('Prepare Ansible Variables') {
   steps {
     dir('ansible') {
-      sh 'jinja2 group_vars/all.yaml.j2 -o group_vars/all.yaml'
+      sh '''
+  export PATH=$HOME/.local/bin:$PATH
+  jinja2 group_vars/all.yaml.j2 -o group_vars/all.yaml
+'''
+
     }
   }
 }
