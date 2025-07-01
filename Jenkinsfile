@@ -98,6 +98,44 @@ pipeline {
       }
     }
 
+        stage('Establish Passwordless SSH') {
+      steps {
+        dir('ansible') {
+          script {
+            // Generate public key from PEM
+            sh '''
+              mkdir -p ~/.ssh
+              ssh-keygen -y -f "$PEM_FILE" > "$PEM_FILE.pub"
+            '''
+            
+            def masterIps = readJSON text: env.MASTER_IPS_JSON
+            def workerIps = readJSON text: env.WORKER_IPS_JSON
+            def allIps = masterIps + workerIps
+
+            allIps.each { ip ->
+              // Wait for SSH access
+              sh """
+                for i in {1..30}; do
+                  if ssh -o StrictHostKeyChecking=no -i "$PEM_FILE" -o ConnectTimeout=5 ubuntu@${ip} 'echo SSH ready' 2>/dev/null; then
+                    echo "SSH active on ${ip}"
+                    break
+                  fi
+                  echo "Waiting for SSH on ${ip}..."
+                  sleep 5
+                done
+              """
+              
+              // Copy SSH key
+              sh """
+                ssh-keygen -R ${ip} || true
+                ssh-copy-id -i "$PEM_FILE.pub" -o StrictHostKeyChecking=no ubuntu@${ip}
+              """
+            }
+          }
+        }
+      }
+    }
+
 // stage('Generate Ansible Inventory') {
 //   steps {
 //     dir('ansible') {
@@ -142,36 +180,36 @@ pipeline {
 // }
 
 
-stage('Establish Passwordless SSH') {
-  steps {
-    dir('ansible') {
-      script {
-        // Generate public key from PEM if not present
-        sh '''
-          mkdir -p ~/.ssh
-          if [ ! -f "$PEM_FILE.pub" ]; then
-            ssh-keygen -y -f $PEM_FILE > $PEM_FILE.pub
-          fi
-        '''
-        def ips = readJSON text: env.EC2_IPS_JSON
-        ips.each { ip ->
-  // Wait for SSH to be available
-  sh """
-    for i in {1..30}; do
-      if ssh -o StrictHostKeyChecking=no -i $PEM_FILE -o ConnectTimeout=5 ubuntu@$ip 'echo SSH is up' 2>/dev/null; then
-        echo "SSH is ready on $ip"
-        break
-      fi
-      echo "Waiting for SSH on $ip..."
-      sleep 5
-    done
-  """
-  // Now copy the key
-  sh '''
-    ssh-keygen -R $ip || true
-    ssh-copy-id -i $PEM_FILE.pub -o StrictHostKeyChecking=no ubuntu@$ip
-  '''.replace('$ip', ip)
-}
+// stage('Establish Passwordless SSH') {
+//   steps {
+//     dir('ansible') {
+//       script {
+//         // Generate public key from PEM if not present
+//         sh '''
+//           mkdir -p ~/.ssh
+//           if [ ! -f "$PEM_FILE.pub" ]; then
+//             ssh-keygen -y -f $PEM_FILE > $PEM_FILE.pub
+//           fi
+//         '''
+//         def ips = readJSON text: env.EC2_IPS_JSON
+//         ips.each { ip ->
+//   // Wait for SSH to be available
+//   sh """
+//     for i in {1..30}; do
+//       if ssh -o StrictHostKeyChecking=no -i $PEM_FILE -o ConnectTimeout=5 ubuntu@$ip 'echo SSH is up' 2>/dev/null; then
+//         echo "SSH is ready on $ip"
+//         break
+//       fi
+//       echo "Waiting for SSH on $ip..."
+//       sleep 5
+//     done
+//   """
+//   // Now copy the key
+//   sh '''
+//     ssh-keygen -R $ip || true
+//     ssh-copy-id -i $PEM_FILE.pub -o StrictHostKeyChecking=no ubuntu@$ip
+//   '''.replace('$ip', ip)
+// }
 
       }
     }
