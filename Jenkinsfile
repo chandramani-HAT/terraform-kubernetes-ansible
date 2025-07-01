@@ -56,7 +56,7 @@ pipeline {
       }
     }
 
-    stage('Fetch Master Private IP') {
+stage('Fetch Master Private IP') {
   steps {
     dir('terraform') {
       script {
@@ -68,18 +68,20 @@ pipeline {
     }
   }
 }
+
 stage('Generate Ansible Master Vars') {
   steps {
     dir('ansible') {
       script {
-        def masterIps = readJSON text: env.MASTER_IPS_JSON
-        def masterIpVarContent = "master_ip: '${masterIps[0]}'\n"
+        // Use the MASTER_PRIVATE_IP environment variable directly
+        def masterIpVarContent = "master_ip: '${env.MASTER_PRIVATE_IP}'\n"
         writeFile file: 'k8s_master/vars/main.yaml', text: masterIpVarContent
         echo "Generated k8s_master/vars/main.yaml:\n${masterIpVarContent}"
       }
     }
   }
 }
+
 
     stage('Generate Ansible Inventory') {
       steps {
