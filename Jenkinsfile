@@ -98,15 +98,15 @@ pipeline {
       }
     }
 
-        stage('Establish Passwordless SSH') {
+    stage('Establish Passwordless SSH') {
       steps {
         dir('ansible') {
           script {
-            // Generate public key from PEM
-            sh '''
+            // Generate public key from PEM using safe variable handling
+            sh """
               mkdir -p ~/.ssh
-              ssh-keygen -y -f "$PEM_FILE" > "$PEM_FILE.pub"
-            '''
+              ssh-keygen -y -f "${env.PEM_FILE}" > "${env.PEM_FILE}.pub"
+            """
             
             def masterIps = readJSON text: env.MASTER_IPS_JSON
             def workerIps = readJSON text: env.WORKER_IPS_JSON
@@ -116,7 +116,7 @@ pipeline {
               // Wait for SSH access
               sh """
                 for i in {1..30}; do
-                  if ssh -o StrictHostKeyChecking=no -i "$PEM_FILE" -o ConnectTimeout=5 ubuntu@${ip} 'echo SSH ready' 2>/dev/null; then
+                  if ssh -o StrictHostKeyChecking=no -i "${env.PEM_FILE}" -o ConnectTimeout=5 ubuntu@${ip} 'echo SSH ready' 2>/dev/null; then
                     echo "SSH active on ${ip}"
                     break
                   fi
@@ -128,7 +128,7 @@ pipeline {
               // Copy SSH key
               sh """
                 ssh-keygen -R ${ip} || true
-                ssh-copy-id -i "$PEM_FILE.pub" -o StrictHostKeyChecking=no ubuntu@${ip}
+                ssh-copy-id -i "${env.PEM_FILE}.pub" -o StrictHostKeyChecking=no ubuntu@${ip}
               """
             }
           }
