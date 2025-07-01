@@ -1,11 +1,22 @@
 ---
+    - name: Ensure sudoers directory exists
+      become: yes
+      file:
+        path: /etc/sudoers.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
     - name: Ensure passwordless sudo for ubuntu user
+      become: yes
       copy:
         dest: /etc/sudoers.d/90-ubuntu-nopasswd
         content: "ubuntu ALL=(ALL) NOPASSWD:ALL\n"
         owner: root
         group: root
         mode: '0440'
+      validate: 'visudo -cf %s'  # Validate sudo syntax before applying
 
     - name: Disable swap immediately
       command: swapoff -a
