@@ -214,7 +214,22 @@ pipeline {
 //     }
 //   }
 // }
- 
+
+stage('Install Dependencies') {
+  steps {
+    sh 'pip install jinja2-cli'
+  }
+}
+
+// Add this after inventory generation
+stage('Prepare Ansible Variables') {
+  steps {
+    dir('ansible') {
+      sh 'jinja2 group_vars/all.yaml.j2 -o group_vars/all.yaml'
+    }
+  }
+}
+
     stage('Run Ansible Playbook') {
       steps {
         dir('ansible') {
