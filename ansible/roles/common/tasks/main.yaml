@@ -131,6 +131,7 @@
 
 
     - name: Add Docker repository
+      become: yes
       apt_repository:
         repo: "{{ docker_repo }}"
         state: present
