@@ -1,0 +1,173 @@
+---
+    - name: Ensure passwordless sudo for ubuntu user
+      copy:
+        dest: /etc/sudoers.d/90-ubuntu-nopasswd
+        content: "ubuntu ALL=(ALL) NOPASSWD:ALL\n"
+        owner: root
+        group: root
+        mode: '0440'
+
+    - name: Disable swap immediately
+      command: swapoff -a
+      changed_when: false
+
+    - name: Disable swap permanently in /etc/fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+        replace: '# \1'
+
+    - name: Wait for dpkg lock release
+      shell: |
+        while sudo fuser /var/lib/dpkg/lock >/dev/null 2>&1 || \
+              sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+          echo "Waiting for dpkg lock..."
+          sleep 10
+        done
+      changed_when: false
+      async: 45
+      poll: 0
+
+    - name: Update and upgrade packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - jq
+          - gnupg2
+          - software-properties-common
+        state: present
+
+    - name: Create keyrings directory
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Ensure required packages are installed
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gpg
+        state: present
+        update_cache: yes
+
+    - name: Ensure /etc/apt/keyrings directory exists
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+
+    - name: Add Kubernetes GPG key
+      get_url:
+        url: "{{ k8s_gpg_url }}"
+        dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+        mode: "0644"
+
+    - name: Add Kubernetes repository
+      apt_repository:
+        repo: "{{ k8s_repo }}"
+        state: present
+        update_cache: yes
+
+    - name: Update apt cache after adding Kubernetes repo
+      apt:
+        update_cache: yes
+
+    - name: Install Kubernetes components
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+
+    - name: Hold kubelet, kubeadm, kubectl at current version
+      command: apt-mark hold kubelet kubeadm kubectl
+
+
+    - name: Ensure kubelet is started and enabled
+      systemd:
+        name: kubelet
+        state: started
+        enabled: yes
+
+    - name: Add Docker GPG key
+      get_url:
+        url: "{{ docker_gpg_url }}"
+        dest: /etc/apt/keyrings/docker-apt-keyring.asc
+        mode: "0644"
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "{{ docker_repo }}"
+        state: present
+        update_cache: yes
+
+    - name: Update apt cache after adding repositories
+      apt:
+        update_cache: yes
+
+    - name: Install containerd
+      apt:
+        name: containerd.io
+        state: present
+
+    - name: Configure containerd modules
+      copy:
+        dest: /etc/modules-load.d/containerd.conf
+        content: |
+          overlay
+          br_netfilter
+        mode: '0644'
+
+    - name: Load overlay module
+      modprobe:
+        name: overlay
+        state: present
+
+    - name: Load br_netfilter module
+      modprobe:
+        name: br_netfilter
+        state: present
+
+    - name: Set sysctl params for Kubernetes networking
+      copy:
+        dest: /etc/sysctl.d/kubernetes.conf
+        content: |
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.bridge.bridge-nf-call-iptables = 1
+          net.ipv4.ip_forward = 1
+        mode: '0644'
+
+    - name: Apply sysctl params
+      command: sysctl --system
+
+    - name: Generate default containerd config
+      command: containerd config default
+      register: containerd_default_config
+      changed_when: false
+
+    - name: Write containerd config
+      copy:
+        dest: /etc/containerd/config.toml
+        content: "{{ containerd_default_config.stdout | regex_replace('SystemdCgroup = false','SystemdCgroup = true') }}"
+        mode: '0644'
+
+    - name: Restart and enable containerd
+      systemd:
+        name: containerd
+        state: restarted
+        enabled: yes
+

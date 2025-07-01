@@ -19,7 +19,7 @@ pipeline {
     stage('Terraform Init & Validate') {
       steps {
         dir('terraform') {
-          sh 'terraform init --migrate-state || true'
+          sh 'terraform init'
           sh 'terraform validate'
           sh 'terraform plan -out=tfplan'
         }
@@ -29,55 +29,118 @@ pipeline {
     stage('Terraform Apply') {
       steps {
         dir('terraform') {
-          sh 'terraform destroy -auto-approve tfplan'
+          sh 'terraform apply -auto-approve tfplan'
         }
       }
     }
 
-    stage('Fetch EC2 Public IPs') {
+    stage('Fetch Node IPs') {
       steps {
         script {
-          // Run in terraform directory with correct output name
           dir('terraform') {
-            def ipsJson = sh(script: "terraform output -json ec2_instance_public_ips", returnStdout: true).trim()
-            env.EC2_IPS_JSON = ipsJson
+            // Fetch master IPs
+            def masterIps = sh(
+              script: "terraform output -json master_ips", 
+              returnStdout: true
+            ).trim()
+            env.MASTER_IPS_JSON = masterIps
+
+            // Fetch worker IPs
+            def workerIps = sh(
+              script: "terraform output -json worker_ips", 
+              returnStdout: true
+            ).trim()
+            env.WORKER_IPS_JSON = workerIps
           }
-          echo "EC2 Public IPs JSON: ${env.EC2_IPS_JSON}"
         }
       }
     }
-
- stage('Generate Ansible Inventory') {
-  steps {
-    dir('ansible') {
-      script {
-        def ips = readJSON text: env.EC2_IPS_JSON
-        def inventoryContent = """all:
+    stage('Generate Ansible Inventory') {
+      steps {
+        dir('ansible') {
+          script {
+            def masterIps = readJSON text: env.MASTER_IPS_JSON
+            def workerIps = readJSON text: env.WORKER_IPS_JSON
+            
+            def inventoryContent = """all:
   hosts:
+    master:
+      ansible_host: ${masterIps[0]}
+      ansible_user: ubuntu
+      ansible_ssh_private_key_file: ${env.PEM_FILE}
 """
-        ips.eachWithIndex { ip, idx ->
-          def hostname = "ec2-${idx+1}"
-          inventoryContent += """    ${hostname}:
+
+            workerIps.eachWithIndex { ip, idx ->
+              def hostname = "worker${idx+1}"
+              inventoryContent += """    ${hostname}:
       ansible_host: ${ip}
       ansible_user: ubuntu
       ansible_ssh_private_key_file: ${env.PEM_FILE}
 """
-        }
-        inventoryContent += """  children:
-    ec2_instances:
+            }
+
+            inventoryContent += """  children:
+    master_group:
+      hosts:
+        master:
+    worker_group:
       hosts:
 """
-        ips.eachWithIndex { ip, idx ->
-          def hostname = "ec2-${idx+1}"
-          inventoryContent += "        ${hostname}: {}\n"
-        }
+            workerIps.eachWithIndex { ip, idx ->
+              def hostname = "worker${idx+1}"
+              inventoryContent += "        ${hostname}:\n"
+            }
 
-        writeFile file: 'inventory.yaml', text: inventoryContent
-        echo "Generated ansible/inventory.yaml:\n${inventoryContent}"
+            writeFile file: 'inventory.yaml', text: inventoryContent
+            echo "Generated inventory:\n${inventoryContent}"
+          }
+        }
       }
     }
-  }
-}
+
+// stage('Generate Ansible Inventory') {
+//   steps {
+//     dir('ansible') {
+//       script {
+//         def masterIps = readJSON text: env.MASTER_IPS_JSON
+//         def workerIps = readJSON text: env.WORKER_IPS_JSON
+        
+//         def inventoryContent = """all:
+//   hosts:
+//     master:
+//       ansible_host: ${masterIps[0]}
+//       ansible_user: ubuntu
+//       ansible_ssh_private_key_file: ${env.PEM_FILE}
+// """
+
+//         workerIps.eachWithIndex { ip, idx ->
+//           def hostname = "worker${idx+1}"
+//           inventoryContent += """    ${hostname}:
+//       ansible_host: ${ip}
+//       ansible_user: ubuntu
+//       ansible_ssh_private_key_file: ${env.PEM_FILE}
+// """
+//         }
+
+//         inventoryContent += """  children:
+//     master_group:
+//       hosts:
+//         master:
+//     worker_group:
+//       hosts:
+// """
+//         workerIps.eachWithIndex { ip, idx ->
+//           def hostname = "worker${idx+1}"
+//           inventoryContent += "        ${hostname}:\n"
+//         }
+
+//         writeFile file: 'inventory.yaml', text: inventoryContent
+//         echo "Generated inventory:\n${inventoryContent}"
+//       }
+//     }
+//   }
+// }
+
 
 stage('Establish Passwordless SSH') {
   steps {

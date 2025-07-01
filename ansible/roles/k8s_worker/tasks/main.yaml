@@ -1,0 +1,113 @@
+---
+- name: Check if cluster already initialized
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: cluster_initialized
+
+- name: Pull Kubernetes images
+  become: yes
+  command: kubeadm config images pull --cri-socket unix:///run/containerd/containerd.sock
+  when: not cluster_initialized.stat.exists
+
+- name: Initialize Kubernetes cluster
+  become: yes
+  command: >
+    kubeadm init
+    --apiserver-advertise-address={{ master_ip }}
+    --pod-network-cidr=10.244.0.0/16
+    --ignore-preflight-errors=all
+  when: not cluster_initialized.stat.exists
+  register: kubeadm_init
+  # Increased timeout for slow environments
+  async: 600
+  poll: 10
+
+- name: Setup kubeconfig for ubuntu user
+  become: yes
+  block:
+    - name: Create .kube directory
+      file:
+        path: /home/ubuntu/.kube
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Copy admin config
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/ubuntu/.kube/config
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+        remote_src: yes
+
+
+- name: Wait for API server readiness
+  command: kubectl get nodes
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: api_status
+  until: api_status.rc == 0
+  retries: 20
+  delay: 15
+
+- name: Install Flannel CNI
+  become: yes
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  command: kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+
+- name: Wait for Flannel pods to be ready
+  shell: |
+    kubectl -n kube-system get pods -l app=flannel -o jsonpath='{.items[*].status.phase}' | grep -v Running | wc -l
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: flannel_not_ready
+  retries: 20
+  delay: 10
+  until: flannel_not_ready.stdout == "0"
+
+# - name: Download Flannel manifest
+#   get_url:
+#     url: https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+#     dest: /tmp/kube-flannel.yml
+
+# - name: Update Flannel pod network CIDR
+#   replace:
+#     path: /tmp/kube-flannel.yml
+#     regexp: '"Network": "10\.244\.0\.0/16"'
+#     replace: '"Network": "192.168.0.0/16"'
+
+# - name: Apply Flannel manifest
+#   command: kubectl apply -f /tmp/kube-flannel.yml
+#   environment:
+#     KUBECONFIG: /etc/kubernetes/admin.conf
+
+
+- name: Verify controller manager
+  command: kubectl -n kube-system wait --for=condition=Ready pod -l component=kube-controller-manager --timeout=300s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: controller_status
+  until: controller_status.rc == 0
+  retries: 12
+  delay: 15
+
+# This goes in your k8s_master role or after kubeadm init
+- name: Generate join command
+  command: kubeadm token create --print-join-command
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: join_command
+
+- name: Save join command as a shell script on control node
+  copy:
+    content: |
+      #!/bin/bash
+      {{ join_command.stdout }}
+    dest: "{{ playbook_dir }}/join-command.sh"
+    mode: "0755"
+  delegate_to: localhost
+  run_once: true
+  become: false
