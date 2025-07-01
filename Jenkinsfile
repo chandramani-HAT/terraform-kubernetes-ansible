@@ -210,11 +210,10 @@ pipeline {
 //     ssh-copy-id -i $PEM_FILE.pub -o StrictHostKeyChecking=no ubuntu@$ip
 //   '''.replace('$ip', ip)
 // }
-
-      }
-    }
-  }
-}
+//       }
+//     }
+//   }
+// }
  
     stage('Run Ansible Playbook') {
       steps {
