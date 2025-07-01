@@ -28,19 +28,13 @@ output "private_route_table_id" {
   value       = module.vpc.private_route_table_id
 }
 
-output "ec2_instance_ids" {
-  description = "EC2 Instance IDs"
-  value       = module.ec2_instances.instance_ids
-}
-output "ec2_instance_public_ips" {
-  description = "Public IPs of EC2 Instances"
-  value       = module.ec2_instances.public_ips
-}
 
 output "master_ips" {
-  value = data.aws_instances.master.public_ips
+  description = "Public IPs of Kubernetes master nodes"
+  value       = module.ec2_instances.master_ips
 }
 
 output "worker_ips" {
-  value = data.aws_instances.worker.public_ips
+  description = "Public IPs of Kubernetes worker nodes"
+  value       = module.ec2_instances.worker_ips
 }

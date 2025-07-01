@@ -81,12 +81,5 @@ variable "instance_type" {
 variable "key_name" {
   description = "Key pair name for SSH access"
   type        = string
-  default = "terraform_ansible"
-}
-
-variable "instance_count" {
-  description = "Number of EC2 instances to launch"
-  type        = number
-  default     = 2
-  
+  default     = "terraform_ansible"
 }

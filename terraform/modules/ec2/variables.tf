@@ -24,12 +24,6 @@ variable "subnet_ids" {
   type        = list(string)
 }
 
-variable "instance_count" {
-  description = "Number of EC2 instances to launch"
-  type        = number
-  default     = 2
-}
-
 variable "environment" {
   description = "Environment tag"
   type        = string

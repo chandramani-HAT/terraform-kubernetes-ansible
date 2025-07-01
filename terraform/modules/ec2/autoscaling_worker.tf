@@ -55,7 +55,7 @@ resource "aws_autoscaling_group" "worker" {
   min_size            = 3
   max_size            = 3
   desired_capacity    = 3
-  vpc_zone_identifier = module.vpc.public_subnet_ids
+  vpc_zone_identifier = var.subnet_ids
   
   launch_template {
     id      = aws_launch_template.k8s_worker.id

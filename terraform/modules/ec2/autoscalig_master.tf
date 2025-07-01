@@ -47,7 +47,7 @@ resource "aws_autoscaling_group" "master" {
   min_size            = 1
   max_size            = 1
   desired_capacity    = 1
-  vpc_zone_identifier = module.vpc.public_subnet_ids
+  vpc_zone_identifier = var.subnet_ids
   
   launch_template {
     id      = aws_launch_template.k8s_master.id
