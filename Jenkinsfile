@@ -68,6 +68,19 @@ pipeline {
     }
   }
 }
+stage('Generate Ansible Master Vars') {
+  steps {
+    dir('ansible') {
+      script {
+        def masterIps = readJSON text: env.MASTER_IPS_JSON
+        def masterIpVarContent = "master_ip: '${masterIps[0]}'\n"
+        writeFile file: 'k8s_master/vars/main.yaml', text: masterIpVarContent
+        echo "Generated k8s_master/vars/main.yaml:\n${masterIpVarContent}"
+      }
+    }
+  }
+}
+
     stage('Generate Ansible Inventory') {
       steps {
         dir('ansible') {
@@ -149,84 +162,7 @@ pipeline {
       }
     }
 
-// stage('Generate Ansible Inventory') {
-//   steps {
-//     dir('ansible') {
-//       script {
-//         def masterIps = readJSON text: env.MASTER_IPS_JSON
-//         def workerIps = readJSON text: env.WORKER_IPS_JSON
-        
-//         def inventoryContent = """all:
-//   hosts:
-//     master:
-//       ansible_host: ${masterIps[0]}
-//       ansible_user: ubuntu
-//       ansible_ssh_private_key_file: ${env.PEM_FILE}
-// """
 
-//         workerIps.eachWithIndex { ip, idx ->
-//           def hostname = "worker${idx+1}"
-//           inventoryContent += """    ${hostname}:
-//       ansible_host: ${ip}
-//       ansible_user: ubuntu
-//       ansible_ssh_private_key_file: ${env.PEM_FILE}
-// """
-//         }
-
-//         inventoryContent += """  children:
-//     master_group:
-//       hosts:
-//         master:
-//     worker_group:
-//       hosts:
-// """
-//         workerIps.eachWithIndex { ip, idx ->
-//           def hostname = "worker${idx+1}"
-//           inventoryContent += "        ${hostname}:\n"
-//         }
-
-//         writeFile file: 'inventory.yaml', text: inventoryContent
-//         echo "Generated inventory:\n${inventoryContent}"
-//       }
-//     }
-//   }
-// }
-
-
-// stage('Establish Passwordless SSH') {
-//   steps {
-//     dir('ansible') {
-//       script {
-//         // Generate public key from PEM if not present
-//         sh '''
-//           mkdir -p ~/.ssh
-//           if [ ! -f "$PEM_FILE.pub" ]; then
-//             ssh-keygen -y -f $PEM_FILE > $PEM_FILE.pub
-//           fi
-//         '''
-//         def ips = readJSON text: env.EC2_IPS_JSON
-//         ips.each { ip ->
-//   // Wait for SSH to be available
-//   sh """
-//     for i in {1..30}; do
-//       if ssh -o StrictHostKeyChecking=no -i $PEM_FILE -o ConnectTimeout=5 ubuntu@$ip 'echo SSH is up' 2>/dev/null; then
-//         echo "SSH is ready on $ip"
-//         break
-//       fi
-//       echo "Waiting for SSH on $ip..."
-//       sleep 5
-//     done
-//   """
-//   // Now copy the key
-//   sh '''
-//     ssh-keygen -R $ip || true
-//     ssh-copy-id -i $PEM_FILE.pub -o StrictHostKeyChecking=no ubuntu@$ip
-//   '''.replace('$ip', ip)
-// }
-//       }
-//     }
-//   }
-// }
 
     stage('Run Ansible Playbook') {
       steps {
