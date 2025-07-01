@@ -41,5 +41,5 @@ output "worker_ips" {
 
 output "master_private_ip" {
   description = "Private IP of the master node"
-  value       = module.ec2_instances.master.private_ips[0]  
+  value       = module.ec2_instances.master_private_ip
 }
