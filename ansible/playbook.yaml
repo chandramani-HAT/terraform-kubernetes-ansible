@@ -1,16 +1,19 @@
 ---
 - name: Run common tasks on all nodes
   hosts: all
+  become: yes
   gather_facts: yes
   roles:
     - common
 
 - name: Configure master node
   hosts: master
+  become: yes
   roles:
     - k8s_master
 
 - name: Configure worker nodes
   hosts: worker_group
+  become: yes
   roles:
     - k8s_worker
