@@ -79,13 +79,6 @@
         state: directory
         mode: '0755'
 
-
-    # - name: Add Kubernetes GPG key
-    #   get_url:
-    #     url: "{{ k8s_gpg_url }}"
-    #     dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
-    #     mode: "0644"
-
     - name: Download Kubernetes GPG key
       become: yes
       shell: |
@@ -123,11 +116,19 @@
         state: started
         enabled: yes
 
-    - name: Add Docker GPG key
-      get_url:
-        url: "{{ docker_gpg_url }}"
-        dest: /etc/apt/keyrings/docker-apt-keyring.asc
-        mode: "0644"
+    - name: Download Docker GPG key and convert to gpg format
+      become: yes
+      shell: |
+        curl -fsSL "{{ docker_gpg_url }}" | gpg --dearmor -o /etc/apt/keyrings/docker-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/docker-apt-keyring.gpg
+
+    - name: Set permissions on Docker apt keyring
+      become: yes
+      file:
+        path: /etc/apt/keyrings/docker-apt-keyring.gpg
+        mode: '0644'
+
 
     - name: Add Docker repository
       apt_repository:
