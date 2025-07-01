@@ -217,7 +217,7 @@ pipeline {
 
 stage('Install Dependencies') {
   steps {
-    sh 'pip install jinja2-cli'
+    sh 'pipx install jinja2-cli'
   }
 }
 
