@@ -7,7 +7,7 @@ resource "aws_launch_template" "k8s_master" {
     name = aws_iam_instance_profile.ec2_instance_profile.name
   }
   vpc_security_group_ids = [aws_security_group.ec2_security_group.id]
-  user_data              = base64encode(file("${path.module}/user-data/master.sh"))
+#   user_data              = base64encode(file("${path.module}/user-data/master.sh"))
 
   block_device_mappings {
     device_name = "/dev/xvda"

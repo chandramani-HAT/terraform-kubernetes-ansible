@@ -11,7 +11,7 @@ pipeline {
         git(
         branch: 'main',
         credentialsId: 'github-repo',
-        url: 'https://github.com/chandramani-HAT/automate-provisioning.git'
+        url: 'https://github.com/chandramani-HAT/terraform-kubernetes-ansible.git'
         )
     }
     }
