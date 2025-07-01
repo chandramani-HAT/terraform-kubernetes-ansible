@@ -80,11 +80,19 @@
         mode: '0755'
 
 
+    # - name: Add Kubernetes GPG key
+    #   get_url:
+    #     url: "{{ k8s_gpg_url }}"
+    #     dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+    #     mode: "0644"
+
     - name: Add Kubernetes GPG key
-      get_url:
+      become: yes
+      ansible.builtin.apt_key:
         url: "{{ k8s_gpg_url }}"
-        dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
-        mode: "0644"
+        state: present
+        keyring: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+        
 
     - name: Add Kubernetes repository
       apt_repository:
