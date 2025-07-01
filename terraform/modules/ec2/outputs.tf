@@ -17,3 +17,11 @@ output "iam_instance_profile" {
   description = "Name of the IAM instance profile attached to the EC2 instances"
   value = aws_iam_instance_profile.ec2_instance_profile.name
 }
+
+output "master_ips" {
+  value = data.aws_instances.master.public_ips
+}
+
+output "worker_ips" {
+  value = data.aws_instances.worker.public_ips
+}

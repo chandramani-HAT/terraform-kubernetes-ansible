@@ -37,3 +37,10 @@ output "ec2_instance_public_ips" {
   value       = module.ec2_instances.public_ips
 }
 
+output "master_ips" {
+  value = data.aws_instances.master.public_ips
+}
+
+output "worker_ips" {
+  value = data.aws_instances.worker.public_ips
+}
