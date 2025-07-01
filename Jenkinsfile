@@ -19,20 +19,20 @@ pipeline {
     stage('Terraform Init & Validate') {
       steps {
         dir('terraform') {
-          sh 'terraform init'
+          sh 'terraform destroy --auto-approve'
           sh 'terraform validate'
           sh 'terraform plan -out=tfplan'
         }
       }
     }
 
-    stage('Terraform Apply') {
-      steps {
-        dir('terraform') {
-          sh 'terraform apply -auto-approve tfplan'
-        }
-      }
-    }
+    // stage('Terraform Apply') {
+    //   steps {
+    //     dir('terraform') {
+    //       sh 'terraform apply -auto-approve tfplan'
+    //     }
+    //   }
+    // }
 
     stage('Fetch EC2 Public IPs') {
       steps {
