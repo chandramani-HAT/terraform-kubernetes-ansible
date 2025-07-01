@@ -8,6 +8,8 @@
 
 - name: Configure master node
   hosts: master
+  vars_files:
+  - master_ip.yaml
   become: yes
   roles:
     - k8s_master

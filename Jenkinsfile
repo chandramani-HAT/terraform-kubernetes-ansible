@@ -228,16 +228,6 @@ pipeline {
 //   }
 // }
 
-
-stage('Run Ansible Playbook') {
-  steps {
-    dir('ansible') {
-      sh "ansible-playbook -i inventory.yaml playbook.yaml --extra-vars 'master_private_ip=${env.MASTER_PRIVATE_IP}'"
-    }
-  }
-}
-
-
     stage('Run Ansible Playbook') {
       steps {
         dir('ansible') {
