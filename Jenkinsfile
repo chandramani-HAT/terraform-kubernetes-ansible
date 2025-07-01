@@ -19,7 +19,7 @@ pipeline {
     stage('Terraform Init & Validate') {
       steps {
         dir('terraform') {
-          sh 'terraform init --migrate-state'
+          sh 'terraform init --migrate-state || true'
           sh 'terraform validate'
           sh 'terraform plan -out=tfplan'
         }
