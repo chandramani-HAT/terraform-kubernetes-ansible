@@ -18,10 +18,10 @@ output "iam_instance_profile" {
   value = aws_iam_instance_profile.ec2_instance_profile.name
 }
 
-# output "master_ips" {
-#   value = data.aws_instances.master.public_ips
-# }
+output "master_ips" {
+  value = data.aws_instances.master.public_ips
+}
 
-# output "worker_ips" {
-#   value = data.aws_instances.worker.public_ips
-# }
+output "worker_ips" {
+  value = data.aws_instances.worker.public_ips
+}
