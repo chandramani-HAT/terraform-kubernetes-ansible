@@ -55,6 +55,19 @@ pipeline {
         }
       }
     }
+
+    stage('Fetch Master Private IP') {
+  steps {
+    dir('terraform') {
+      script {
+        env.MASTER_PRIVATE_IP = sh(
+          script: "terraform output -raw master_private_ip", 
+          returnStdout: true
+        ).trim()
+      }
+    }
+  }
+}
     stage('Generate Ansible Inventory') {
       steps {
         dir('ansible') {
@@ -215,24 +228,15 @@ pipeline {
 //   }
 // }
 
-stage('Install Dependencies') {
-  steps {
-    sh 'python3.11 -m pip install Jinja2-cli --break-system-packages'
-  }
-}
 
-// Add this after inventory generation
-stage('Prepare Ansible Variables') {
+stage('Run Ansible Playbook') {
   steps {
     dir('ansible') {
-      sh '''
-  export PATH=$HOME/.local/bin:$PATH
-  jinja2 group_vars/all.yaml.j2 -o group_vars/all.yaml
-'''
-
+      sh "ansible-playbook -i inventory.yaml playbook.yaml --extra-vars 'master_private_ip=${env.MASTER_PRIVATE_IP}'"
     }
   }
 }
+
 
     stage('Run Ansible Playbook') {
       steps {

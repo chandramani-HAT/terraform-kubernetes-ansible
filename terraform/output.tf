@@ -38,3 +38,8 @@ output "worker_ips" {
   description = "Public IPs of Kubernetes worker nodes"
   value       = module.ec2_instances.worker_ips
 }
+
+output "master_private_ip" {
+  description = "Private IP of the master node"
+  value       = module.ec2_instances.master.private_ips[0]  
+}
