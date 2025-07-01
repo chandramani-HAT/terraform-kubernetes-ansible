@@ -10,13 +10,13 @@
 
     - name: Ensure passwordless sudo for ubuntu user
       become: yes
-      copy:
+      template:
+        src: 90-ubuntu-nopasswd.j2
         dest: /etc/sudoers.d/90-ubuntu-nopasswd
-        content: "ubuntu ALL=(ALL) NOPASSWD:ALL\n"
         owner: root
         group: root
         mode: '0440'
-      validate: 'visudo -cf %s'  # Validate sudo syntax before applying
+        validate: 'visudo -cf %s'
 
     - name: Disable swap immediately
       command: swapoff -a
