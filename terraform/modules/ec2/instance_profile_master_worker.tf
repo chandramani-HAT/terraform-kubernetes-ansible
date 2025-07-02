@@ -33,7 +33,7 @@ resource "aws_iam_role_policy_attachment" "k8s_master_eks_cluster" {
 
 resource "aws_iam_role_policy_attachment" "k8s_master_ecr_readonly" {
   role       = aws_iam_role.k8s_master_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonECRReadOnly"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
 resource "aws_iam_role_policy_attachment" "k8s_master_route53_full" {
@@ -99,7 +99,7 @@ resource "aws_iam_role_policy_attachment" "k8s_worker_eks_cni" {
 
 resource "aws_iam_role_policy_attachment" "k8s_worker_ecr_readonly" {
   role       = aws_iam_role.k8s_worker_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonECRReadOnly"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
 resource "aws_iam_role_policy_attachment" "k8s_worker_ebs_csi" {

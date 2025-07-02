@@ -10,7 +10,7 @@ resource "aws_launch_template" "k8s_worker" {
 #   user_data              = base64encode(file("${path.module}/user-data/worker.sh"))
 
   block_device_mappings {
-    device_name = "/dev/xvda"
+    device_name = "/dev/sda1"
     ebs {
       volume_type           = "gp3"
       delete_on_termination = false
