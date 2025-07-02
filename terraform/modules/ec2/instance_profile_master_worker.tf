@@ -20,6 +20,36 @@ resource "aws_iam_role" "k8s_master_role" {
     Classification = var.classification
   })
 }
+resource "aws_iam_policy" "ssm_master_access" {
+  name        = "${var.environment}-ssm-document-expert-backend-full-access-master"
+  description = "Full access to SSM parameter document-expert-backend"
+
+  policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter",
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath",
+        "ssm:PutParameter",
+        "ssm:DeleteParameter",
+        "ssm:DescribeParameters"
+      ],
+      "Resource": "arn:aws:ssm:us-east-1:028892270743:parameter/document-expert-backend"
+    }
+  ]
+}
+POLICY
+}
+
+resource "aws_iam_role_policy_attachment" "attach_ssm_policy_master" {
+  role       = aws_iam_role.k8s_master_role.name
+  policy_arn = aws_iam_policy.ssm_master_access.arn
+}
+
 
 resource "aws_iam_role_policy_attachment" "k8s_master_ec2_full" {
   role       = aws_iam_role.k8s_master_role.name
@@ -81,6 +111,36 @@ resource "aws_iam_role" "k8s_worker_role" {
     Classification = var.classification
   })
 }
+resource "aws_iam_policy" "ssm_worker_access" {
+  name        = "${var.environment}-ssm-document-expert-backend-full-access-worker"
+  description = "Full access to SSM parameter document-expert-backend"
+
+  policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter",
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath",
+        "ssm:PutParameter",
+        "ssm:DeleteParameter",
+        "ssm:DescribeParameters"
+      ],
+      "Resource": "arn:aws:ssm:us-east-1:028892270743:parameter/document-expert-backend"
+    }
+  ]
+}
+POLICY
+}
+
+resource "aws_iam_role_policy_attachment" "attach_ssm_policy_worker" {
+  role       = aws_iam_role.k8s_worker_role.name
+  policy_arn = aws_iam_policy.ssm_worker_access.arn
+}
+
 
 resource "aws_iam_role_policy_attachment" "k8s_worker_ec2_full" {
   role       = aws_iam_role.k8s_worker_role.name
