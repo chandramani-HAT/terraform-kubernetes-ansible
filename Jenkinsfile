@@ -164,8 +164,6 @@ stage('Generate Ansible Master Vars') {
       }
     }
 
-
-
     stage('Run Ansible Playbook') {
       steps {
         dir('ansible') {

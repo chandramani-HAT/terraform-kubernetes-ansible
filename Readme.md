@@ -1,6 +1,6 @@
-# Automate Provisioning and Deployment with Jenkins, Terraform, and Ansible
+# Automate Provisioning and Deployment with Jenkins, Terraform, and Ansible (with AWS Auto Scaling)
 
-This repository contains a complete CI/CD pipeline setup to provision AWS infrastructure using **Terraform**, configure instances and deploy applications using **Ansible**, all orchestrated by **Jenkins**. The pipeline securely manages SSH keys, establishes passwordless SSH access, and handles AWS CLI installation on EC2 instances.
+This repository provides a complete CI/CD pipeline to provision AWS infrastructure using **Terraform**, configure and deploy applications using **Ansible**, and orchestrate the process with **Jenkins**. It leverages AWS Auto Scaling Groups (ASG) for scalable, production-grade infrastructure.
 
 ---
 
@@ -20,16 +20,17 @@ This repository contains a complete CI/CD pipeline setup to provision AWS infras
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
 - [References](#references)
+- [Author](#author)
 
 ---
 
 ## Overview
 
-- **Terraform** provisions EC2 instances, VPC, subnets, and networking components.
-- **Jenkins** runs the pipeline to initialize Terraform, apply infrastructure changes, and trigger Ansible.
-- **Ansible** configures EC2 instances, installs AWS CLI, pulls Docker images, and runs containers.
-- SSH keys are securely managed via Jenkins credentials, with passwordless SSH established automatically.
-- The pipeline handles common issues like SSH readiness, Python environment restrictions, and AWS CLI installation quirks.
+- **Terraform** provisions VPC, subnets, security groups, IAM roles, and creates AWS Auto Scaling Groups (ASG) with Launch Templates for Kubernetes master and worker nodes.
+- **Jenkins** orchestrates the pipeline, running Terraform and Ansible steps, and dynamically generates Ansible inventory and variable files.
+- **Ansible** configures EC2 instances, installs Kubernetes, Docker, AWS CLI, and deploys containers.
+- **Auto Scaling** ensures your Kubernetes nodes are highly available and can scale as needed.
+- **SSH keys** are managed securely via Jenkins credentials; passwordless SSH is established automatically.
 
 ---
 
@@ -37,11 +38,10 @@ This repository contains a complete CI/CD pipeline setup to provision AWS infras
 
 - Jenkins server with:
   - **Pipeline Utility Steps Plugin** (for `readJSON`)
-  - **SSH Agent Plugin** (optional but recommended)
+  - **SSH Agent Plugin** (recommended)
 - AWS account with proper IAM permissions
-- Terraform installed on Jenkins agents
-- Ansible installed on Jenkins agents
-- Docker installed on EC2 instances
+- Terraform (>= 1.3) and Ansible installed on Jenkins agents
+- Docker installed on EC2 instances (via Ansible)
 - PEM private key file for EC2 SSH access
 
 ---
@@ -50,52 +50,68 @@ This repository contains a complete CI/CD pipeline setup to provision AWS infras
 
 ### 1. Jenkins Credentials Setup
 
-- Add your PEM private key as a **Secret file** credential in Jenkins.
-  - ID example: `terraform_ansible.pem`
-- This key will be injected securely into the pipeline as an environment variable.
-- Add the github token as the **username and password** credentials in jenkins
-  - ID : `github-repo`
-- This key will be injected securely into the pipeline to pull the code 
-- Jenkins `Pipeline Utility Steps` Plugin install on jenkins console.
+- Add your PEM private key as a **Secret file** credential in Jenkins (e.g., `terraform_ansible.pem`).
+- Add your GitHub token as **username and password** credentials (`github-repo`).
+- Install the Jenkins `Pipeline Utility Steps` plugin.
 
 ### 2. Terraform Infrastructure Provisioning
 
-- Use Terraform code to define AWS infrastructure.
+- Use Terraform code to define AWS infrastructure, including ASG and Launch Templates.
+- Example using [terraform-aws-modules/autoscaling/aws](https://github.com/terraform-aws-modules/terraform-aws-autoscaling):
+
+```
+module "asg" {
+source = "terraform-aws-modules/autoscaling/aws"
+
+name = "k8s-worker-asg"
+min_size = 3
+max_size = 6
+desired_capacity = 3
+vpc_zone_identifier = [module.vpc.public_subnet_ids]
+launch_template_name = "k8s-worker-template"
+image_id = "ami-xxxxxxx"
+instance_type = "t3.medium"
+security_groups = [aws_security_group.k8s.id]
+
+... other settings ...
+}
+
+```
+
+
 - Outputs should include:
-  - `ec2_instance_ids`
-  - `ec2_instance_public_ips`
+  - `master_ips`, `worker_ips` (public/private as needed)
   - Network components (VPC, subnets, route tables)
-- Run `terraform init`, `plan`, and `apply` in Jenkins pipeline.
 
 ### 3. Fetching Terraform Outputs
 
-- Use `terraform output -json ec2_instance_public_ips` to get instance IPs.
-- Store output JSON in an environment variable for later use.
+- Use `terraform output -json master_ips` and `terraform output -json worker_ips` to get instance IPs.
+- Store output JSON in environment variables for later use.
 
 ### 4. Ansible Inventory Generation
 
-- Parse the JSON IP list with `readJSON`.
+- Parse the JSON IP lists with `readJSON` in Jenkins.
 - Generate a dynamic inventory YAML file inside the `ansible` directory.
 - Reference the PEM file path securely in inventory using environment variables.
 
 ### 5. Establish Passwordless SSH
 
-- Generate the public key from PEM file if not already present.
+- Generate the public key from the PEM file if not already present.
 - Wait for SSH availability on each EC2 instance before copying keys.
 - Use `ssh-copy-id` to copy the public key to EC2 instances.
-- Handle known_hosts cleanup with `ssh-keygen -R`.
-- Retry SSH connection until success to avoid timing issues.
+- Clean up `known_hosts` with `ssh-keygen -R`.
+- Retry SSH connection until successful.
 
 ### 6. AWS CLI Installation on EC2
 
-- Install `unzip` package first to extract AWS CLI installer.
-- Download AWS CLI v2 installer using `curl` (avoid Ansible `get_url` due to Python 3.12+ issues).
+- Install `unzip` package first.
+- Download AWS CLI v2 installer using `curl`.
 - Extract and install AWS CLI v2 using the official bundled installer.
 - Avoid installing AWS CLI via `pip` or `apt` to prevent environment conflicts.
 
 ### 7. Docker Image Deployment
 
-- Define Docker images and container metadata in variables without Jinja2 templating inside.
+- Define Docker images and container metadata in variables.
 - Pull Docker images using `docker pull`.
 - Run Docker containers conditionally based on inventory hostname.
 - Prefer using Ansible `community.docker` modules for idempotency.
@@ -104,6 +120,12 @@ This repository contains a complete CI/CD pipeline setup to provision AWS infras
 
 ## Jenkins Pipeline
 
+- Checks out the repository
+- Runs Terraform init, plan, and apply
+- Fetches Terraform outputs for master and worker IPs
+- Generates Ansible inventory and variable files dynamically
+- Establishes passwordless SSH to EC2 instances
+- Runs Ansible playbook to configure the cluster
 
 ---
 
@@ -120,33 +142,39 @@ This repository contains a complete CI/CD pipeline setup to provision AWS infras
 
 ## Troubleshooting
 
-| Issue                                  | Cause                                         | Solution                                     |
+| Issue | Cause | Solution |
 |---------------------------------------|-----------------------------------------------|----------------------------------------------|
-| `No such DSL method 'readJSON'`       | Missing Pipeline Utility Steps Plugin          | Install plugin in Jenkins                     |
-| PEM file path masked as `****`         | Groovy string interpolation with secrets       | Use single quotes and `$PEM_FILE` in shell   |
-| SSH-copy-id fails first run             | SSH service not ready on EC2                    | Add SSH wait/retry loop before copying keys  |
-| AWS CLI install errors                  | Python 3.12+ PEP 668 restrictions              | Use official AWS CLI v2 bundled installer     |
-| `unzip` command missing                 | `unzip` not installed on EC2                    | Install `unzip` package via apt               |
-| Jinja2 templating inside variables      | Ansible does not recursively render variables   | Build commands in tasks, not in variable defs|
+| `No such DSL method 'readJSON'` | Missing Pipeline Utility Steps Plugin | Install plugin in Jenkins |
+| PEM file path masked as `****` | Groovy string interpolation with secrets | Use single quotes and `$PEM_FILE` in shell |
+| SSH-copy-id fails first run | SSH service not ready on EC2 | Add SSH wait/retry loop before copying keys |
+| AWS CLI install errors | Python 3.12+ PEP 668 restrictions | Use official AWS CLI v2 bundled installer |
+| `unzip` command missing | `unzip` not installed on EC2 | Install `unzip` package via apt |
+| Jinja2 templating inside variables | Ansible does not recursively render variables | Build commands in tasks, not in variable defs|
 
 ---
 
 ## References
 
+- [Terraform AWS Autoscaling Module](https://github.com/terraform-aws-modules/terraform-aws-autoscaling)
 - [Jenkins Pipeline Utility Steps Plugin](https://plugins.jenkins.io/pipeline-utility-steps/)
 - [Ansible Docker Collection](https://docs.ansible.com/ansible/latest/collections/community/docker/docker_container_module.html)
 - [AWS CLI Installation Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-- [PEP 668 – Python Packaging](https://peps.python.org/pep-0668/)
-- [Ansible wait_for Module](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/wait_for_module.html)
+- [Terraform AWS Provider Documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/autoscaling_group)
+- [Spacelift: Deploy AWS Auto Scaling Group with Terraform](https://spacelift.io/blog/terraform-autoscaling-group)
 
 ---
-
 
 ## Author
 
-Chandramani 
+Chandramani
 
 ---
 
-Overview:
-![alt text](<Project.png>)
+## Overview Diagram
+
+![alt text](image.png)
+
+---
+
+**Note:**  
+- This repository demonstrates a production-grade, scalable, and automated infrastructure provisioning and deployment pipeline using industry best practices and AWS Auto Scaling.
