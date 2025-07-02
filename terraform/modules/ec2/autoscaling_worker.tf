@@ -4,7 +4,7 @@ resource "aws_launch_template" "k8s_worker" {
   instance_type = var.instance_type
   key_name      = var.key_name
   iam_instance_profile {
-    name = aws_iam_instance_profile.ec2_instance_profile.name
+    name = aws_iam_instance_profile.k8s_worker_profile.name
   }
   vpc_security_group_ids = [aws_security_group.ec2_security_group.id]
 #   user_data              = base64encode(file("${path.module}/user-data/worker.sh"))
