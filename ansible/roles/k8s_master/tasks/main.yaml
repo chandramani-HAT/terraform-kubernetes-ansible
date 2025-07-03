@@ -96,7 +96,7 @@
   run_once: true
   become: false
 
-  - name: Ensure OpenJDK 11 is installed
+- name: Ensure OpenJDK 11 is installed
   become: yes
   apt:
     name: openjdk-11-jre
