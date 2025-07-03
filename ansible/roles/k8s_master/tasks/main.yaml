@@ -96,4 +96,39 @@
   run_once: true
   become: false
 
+  - name: Ensure OpenJDK 11 is installed
+  become: yes
+  apt:
+    name: openjdk-11-jre
+    state: present
+    update_cache: yes
+
+- name: Download agent.jar (Jenkins agent)
+  become: yes
+  get_url:
+    url: http://18.234.99.184:8080/jnlpJars/agent.jar
+    dest: /home/ubuntu/agent.jar
+    mode: '0755'
+    owner: ubuntu
+    group: ubuntu
+
+- name: Start Jenkins agent as background process
+  become: yes
+  become_user: ubuntu
+  shell: |
+    nohup java -jar /home/ubuntu/agent.jar -url http://18.234.99.184:8080/ -secret 9a6117f1e62b224d658ded7c3af708d6939d13f8b1d6afcc87c206692d8ddc68 -name master -webSocket -workDir /home/ubuntu > /home/ubuntu/agent.log 2>&1 &
+  args:
+    executable: /bin/bash
+  environment:
+    JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+
+- name: Ensure agent.log is owned by ubuntu
+  become: yes
+  file:
+    path: /home/ubuntu/agent.log
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+
+
 
