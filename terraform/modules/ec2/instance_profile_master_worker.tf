@@ -50,6 +50,92 @@ resource "aws_iam_role_policy_attachment" "attach_ssm_policy_master" {
   policy_arn = aws_iam_policy.ssm_master_access.arn
 }
 
+resource "aws_iam_policy" "aws_load_balancer_controller_master" {
+  name        = "AWSLoadBalancerControllerIAMPolicy"
+  description = "Policy for AWS Load Balancer Controller on self-managed Kubernetes"
+  policy      = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "acm:DescribeCertificate",
+        "acm:ListCertificates",
+        "acm:GetCertificate",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:CreateSecurityGroup",
+        "ec2:CreateTags",
+        "ec2:DeleteTags",
+        "ec2:DeleteSecurityGroup",
+        "ec2:DescribeAccountAttributes",
+        "ec2:DescribeAddresses",
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus",
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeTags",
+        "ec2:DescribeVpcs",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:ModifyNetworkInterfaceAttribute",
+        "ec2:RevokeSecurityGroupIngress",
+        "elasticloadbalancing:AddListenerCertificates",
+        "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:CreateListener",
+        "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:CreateRule",
+        "elasticloadbalancing:CreateTargetGroup",
+        "elasticloadbalancing:DeleteListener",
+        "elasticloadbalancing:DeleteLoadBalancer",
+        "elasticloadbalancing:DeleteRule",
+        "elasticloadbalancing:DeleteTargetGroup",
+        "elasticloadbalancing:DeregisterTargets",
+        "elasticloadbalancing:DescribeListenerCertificates",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeLoadBalancerAttributes",
+        "elasticloadbalancing:DescribeRules",
+        "elasticloadbalancing:DescribeSSLPolicies",
+        "elasticloadbalancing:DescribeTags",
+        "elasticloadbalancing:ModifyListener",
+        "elasticloadbalancing:ModifyLoadBalancerAttributes",
+        "elasticloadbalancing:ModifyRule",
+        "elasticloadbalancing:ModifyTargetGroup",
+        "elasticloadbalancing:RegisterTargets",
+        "elasticloadbalancing:RemoveListenerCertificates",
+        "elasticloadbalancing:RemoveTags",
+        "elasticloadbalancing:SetIpAddressType",
+        "elasticloadbalancing:SetSecurityGroups",
+        "elasticloadbalancing:SetSubnets",
+        "elasticloadbalancing:SetWebACL",
+        "iam:CreateServiceLinkedRole",
+        "iam:GetServerCertificate",
+        "iam:ListServerCertificates",
+        "cognito-idp:DescribeUserPoolClient",
+        "waf-regional:GetWebACLForResource",
+        "waf-regional:GetWebACL",
+        "waf-regional:AssociateWebACL",
+        "waf-regional:DisassociateWebACL",
+        "tag:GetResources",
+        "tag:TagResources",
+        "waf:GetWebACLForResource",
+        "waf:AssociateWebACL",
+        "waf:DisassociateWebACL"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+POLICY
+}
+
+resource "aws_iam_role_policy_attachment" "attach_load_balancer_controller_policy_master" {
+  role       = aws_iam_role.k8s_master_role.name
+  policy_arn = aws_iam_policy.aws_load_balancer_controller_master.arn
+}
+
 
 resource "aws_iam_role_policy_attachment" "k8s_master_ec2_full" {
   role       = aws_iam_role.k8s_master_role.name
@@ -140,6 +226,93 @@ resource "aws_iam_role_policy_attachment" "attach_ssm_policy_worker" {
   role       = aws_iam_role.k8s_worker_role.name
   policy_arn = aws_iam_policy.ssm_worker_access.arn
 }
+
+resource "aws_iam_policy" "aws_load_balancer_controller_worker" {
+  name        = "AWSLoadBalancerControllerIAMPolicy"
+  description = "Policy for AWS Load Balancer Controller on self-managed Kubernetes"
+  policy      = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "acm:DescribeCertificate",
+        "acm:ListCertificates",
+        "acm:GetCertificate",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:CreateSecurityGroup",
+        "ec2:CreateTags",
+        "ec2:DeleteTags",
+        "ec2:DeleteSecurityGroup",
+        "ec2:DescribeAccountAttributes",
+        "ec2:DescribeAddresses",
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus",
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeTags",
+        "ec2:DescribeVpcs",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:ModifyNetworkInterfaceAttribute",
+        "ec2:RevokeSecurityGroupIngress",
+        "elasticloadbalancing:AddListenerCertificates",
+        "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:CreateListener",
+        "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:CreateRule",
+        "elasticloadbalancing:CreateTargetGroup",
+        "elasticloadbalancing:DeleteListener",
+        "elasticloadbalancing:DeleteLoadBalancer",
+        "elasticloadbalancing:DeleteRule",
+        "elasticloadbalancing:DeleteTargetGroup",
+        "elasticloadbalancing:DeregisterTargets",
+        "elasticloadbalancing:DescribeListenerCertificates",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeLoadBalancerAttributes",
+        "elasticloadbalancing:DescribeRules",
+        "elasticloadbalancing:DescribeSSLPolicies",
+        "elasticloadbalancing:DescribeTags",
+        "elasticloadbalancing:ModifyListener",
+        "elasticloadbalancing:ModifyLoadBalancerAttributes",
+        "elasticloadbalancing:ModifyRule",
+        "elasticloadbalancing:ModifyTargetGroup",
+        "elasticloadbalancing:RegisterTargets",
+        "elasticloadbalancing:RemoveListenerCertificates",
+        "elasticloadbalancing:RemoveTags",
+        "elasticloadbalancing:SetIpAddressType",
+        "elasticloadbalancing:SetSecurityGroups",
+        "elasticloadbalancing:SetSubnets",
+        "elasticloadbalancing:SetWebACL",
+        "iam:CreateServiceLinkedRole",
+        "iam:GetServerCertificate",
+        "iam:ListServerCertificates",
+        "cognito-idp:DescribeUserPoolClient",
+        "waf-regional:GetWebACLForResource",
+        "waf-regional:GetWebACL",
+        "waf-regional:AssociateWebACL",
+        "waf-regional:DisassociateWebACL",
+        "tag:GetResources",
+        "tag:TagResources",
+        "waf:GetWebACLForResource",
+        "waf:AssociateWebACL",
+        "waf:DisassociateWebACL"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+POLICY
+}
+
+resource "aws_iam_role_policy_attachment" "attach_load_balancer_controller_policy_worker" {
+  role       = aws_iam_role.k8s_worker_role.name
+  policy_arn = aws_iam_policy.aws_load_balancer_controller_worker.arn
+}
+
 
 
 resource "aws_iam_role_policy_attachment" "k8s_worker_ec2_full" {
