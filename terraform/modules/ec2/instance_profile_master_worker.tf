@@ -51,7 +51,7 @@ resource "aws_iam_role_policy_attachment" "attach_ssm_policy_master" {
 }
 
 resource "aws_iam_policy" "aws_load_balancer_controller_master" {
-  name        = "AWSLoadBalancerControllerIAMPolicy"
+  name        = "AWSLoadBalancerControllerIAMPolicyMaster"
   description = "Policy for AWS Load Balancer Controller on self-managed Kubernetes"
   policy      = <<POLICY
 {
@@ -228,7 +228,7 @@ resource "aws_iam_role_policy_attachment" "attach_ssm_policy_worker" {
 }
 
 resource "aws_iam_policy" "aws_load_balancer_controller_worker" {
-  name        = "AWSLoadBalancerControllerIAMPolicy"
+  name        = "AWSLoadBalancerControllerIAMPolicyWorker"
   description = "Policy for AWS Load Balancer Controller on self-managed Kubernetes"
   policy      = <<POLICY
 {
