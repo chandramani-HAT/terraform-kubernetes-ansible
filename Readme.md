@@ -1,6 +1,6 @@
-# Automate Provisioning and Deployment with Jenkins, Terraform, and Ansible (with AWS Auto Scaling)
+# Automate Provisioning and Deployment with Jenkins, Terraform, and Ansible (with AWS Auto Scaling & ALB)
 
-This repository provides a complete CI/CD pipeline to provision AWS infrastructure using **Terraform**, configure and deploy applications using **Ansible**, and orchestrate the process with **Jenkins**. It leverages AWS Auto Scaling Groups (ASG) for scalable, production-grade infrastructure.
+This repository provides a complete CI/CD pipeline to provision AWS infrastructure using **Terraform**, configure and deploy applications using **Ansible**, and orchestrate the process with **Jenkins**. It leverages AWS Auto Scaling Groups (ASG) for scalable, production-grade infrastructure, and integrates the AWS Application Load Balancer (ALB) for high availability and traffic management.
 
 ---
 
@@ -16,6 +16,8 @@ This repository provides a complete CI/CD pipeline to provision AWS infrastructu
   - [5. Establish Passwordless SSH](#5-establish-passwordless-ssh)
   - [6. AWS CLI Installation on EC2](#6-aws-cli-installation-on-ec2)
   - [7. Docker Image Deployment](#7-docker-image-deployment)
+  - [8. AWS Load Balancer Controller IAM Policy](#8-aws-load-balancer-controller-iam-policy)
+  - [9. Jenkins Master and Agent Setup](#9-jenkins-master-and-agent-setup)
 - [Jenkins Pipeline](#jenkins-pipeline)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
@@ -30,6 +32,7 @@ This repository provides a complete CI/CD pipeline to provision AWS infrastructu
 - **Jenkins** orchestrates the pipeline, running Terraform and Ansible steps, and dynamically generates Ansible inventory and variable files.
 - **Ansible** configures EC2 instances, installs Kubernetes, Docker, AWS CLI, and deploys containers.
 - **Auto Scaling** ensures your Kubernetes nodes are highly available and can scale as needed.
+- **ALB (Application Load Balancer)** provides scalable, highly available traffic routing to your Kubernetes workloads.
 - **SSH keys** are managed securely via Jenkins credentials; passwordless SSH is established automatically.
 
 ---
@@ -43,6 +46,7 @@ This repository provides a complete CI/CD pipeline to provision AWS infrastructu
 - Terraform (>= 1.3) and Ansible installed on Jenkins agents
 - Docker installed on EC2 instances (via Ansible)
 - PEM private key file for EC2 SSH access
+- **Jenkins master node** (controller) and at least one Jenkins agent (worker) for distributed builds (see [Jenkins Master and Agent Setup](#9-jenkins-master-and-agent-setup))
 
 ---
 
@@ -58,6 +62,7 @@ This repository provides a complete CI/CD pipeline to provision AWS infrastructu
 
 - Use Terraform code to define AWS infrastructure, including ASG and Launch Templates.
 - Example using [terraform-aws-modules/autoscaling/aws](https://github.com/terraform-aws-modules/terraform-aws-autoscaling):
+
 
 ```
 module "asg" {
@@ -77,7 +82,6 @@ security_groups = [aws_security_group.k8s.id]
 }
 
 ```
-
 
 - Outputs should include:
   - `master_ips`, `worker_ips` (public/private as needed)
@@ -116,6 +120,32 @@ security_groups = [aws_security_group.k8s.id]
 - Run Docker containers conditionally based on inventory hostname.
 - Prefer using Ansible `community.docker` modules for idempotency.
 
+### 8. AWS Load Balancer Controller IAM Policy
+
+- **Create and attach the [official AWS Load Balancer Controller IAM policy](https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/latest/download/iam_policy.json) to all EC2 nodes:**
+
+```
+resource "aws_iam_policy" "aws_load_balancer_controller" {
+name = "AWSLoadBalancerControllerIAMPolicy"
+description = "Policy for AWS Load Balancer Controller on self-managed Kubernetes"
+policy = file("iam_policy.json")
+}
+
+```
+
+- Attach this policy to your node IAM role.  
+- This is required for the AWS Load Balancer Controller to manage ALBs and register targets.
+
+### 9. Jenkins Master and Agent Setup
+
+- **Jenkins Master (Controller):**  
+  - Orchestrates the pipeline, manages job scheduling, and stores configuration.
+- **Jenkins Agent (Worker):**  
+  - Executes pipeline steps (Terraform, Ansible, kubectl, etc.) on provisioned EC2 instances (can be dynamically scaled via ASG).
+- **Recommended:**  
+  - Use the Jenkins master for orchestration and a dedicated agent (with the label `master` or custom) for all deployment steps.
+  - Ensure the agent has all required tools (`kubectl`, `aws`, `helm`, `jq`, etc.) and access to the kubeconfig.
+
 ---
 
 ## Jenkins Pipeline
@@ -126,6 +156,7 @@ security_groups = [aws_security_group.k8s.id]
 - Generates Ansible inventory and variable files dynamically
 - Establishes passwordless SSH to EC2 instances
 - Runs Ansible playbook to configure the cluster
+- Installs and configures the AWS Load Balancer Controller and patches providerID for all nodes
 
 ---
 
@@ -137,6 +168,7 @@ security_groups = [aws_security_group.k8s.id]
 - **Avoid Jinja2 in variables:** Build commands dynamically in tasks.
 - **Use Ansible modules for Docker:** Prefer `community.docker` modules for idempotency.
 - **Isolate Ansible directory:** Keep inventory and playbooks organized under `ansible/`.
+- **Patch providerID automatically:** Use Jenkins shell steps to patch all nodes for ALB integration.
 
 ---
 
@@ -150,6 +182,8 @@ security_groups = [aws_security_group.k8s.id]
 | AWS CLI install errors | Python 3.12+ PEP 668 restrictions | Use official AWS CLI v2 bundled installer |
 | `unzip` command missing | `unzip` not installed on EC2 | Install `unzip` package via apt |
 | Jinja2 templating inside variables | Ansible does not recursively render variables | Build commands in tasks, not in variable defs|
+| ALB not created | Missing subnet tags, providerID, or IAM policy | Tag subnets, patch providerID, check IAM policy |
+| ALB targets unhealthy | Pod not reachable, wrong service type | Use NodePort for ALB, check security groups |
 
 ---
 
@@ -159,8 +193,8 @@ security_groups = [aws_security_group.k8s.id]
 - [Jenkins Pipeline Utility Steps Plugin](https://plugins.jenkins.io/pipeline-utility-steps/)
 - [Ansible Docker Collection](https://docs.ansible.com/ansible/latest/collections/community/docker/docker_container_module.html)
 - [AWS CLI Installation Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-- [Terraform AWS Provider Documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/autoscaling_group)
-- [Spacelift: Deploy AWS Auto Scaling Group with Terraform](https://spacelift.io/blog/terraform-autoscaling-group)
+- [AWS Load Balancer Controller IAM Policy](https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/latest/download/iam_policy.json)
+- [Jenkins Master-Agent Architecture](https://varunmargam.hashnode.dev/efficient-cicd-with-jenkins-exploring-master-slave-architecture-and-agents)
 
 ---
 
@@ -172,9 +206,9 @@ Chandramani
 
 ## Overview Diagram
 
-![alt text](image.png)
+![CI/CD Architecture](image.png)
 
 ---
 
 **Note:**  
-- This repository demonstrates a production-grade, scalable, and automated infrastructure provisioning and deployment pipeline using industry best practices and AWS Auto Scaling.
+This repository demonstrates a production-grade, scalable, and automated infrastructure provisioning and deployment pipeline using industry best practices, AWS Auto Scaling, and ALB integration.
