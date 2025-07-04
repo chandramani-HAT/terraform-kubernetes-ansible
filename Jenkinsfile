@@ -172,12 +172,12 @@ stage('Generate Ansible Master Vars') {
       }
     }
 
-    stage('Terraform destroy') {
-      steps {
-        dir('terraform') {
-          sh 'terraform destroy --auto-approve'
-        }
-      }
-    }    
+    // stage('Terraform destroy') {
+    //   steps {
+    //     dir('terraform') {
+    //       sh 'terraform destroy --auto-approve'
+    //     }
+    //   }
+    // }    
   }
 }
